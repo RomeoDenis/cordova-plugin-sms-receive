@@ -45,7 +45,7 @@ public class SMSReceive extends CordovaPlugin {
 		this.callbackContext = callbackContext;
 		this.requestArgs = inputs;
 		if (action.equals(ACTION_START_WATCH)) {
-			if(!hasPermission()) {
+			if (!hasPermission()) {
 				requestPermissions(START_WATCH_REQ_CODE);
 			} else {
 				result = this.startWatch(callbackContext);
@@ -99,34 +99,34 @@ public class SMSReceive extends CordovaPlugin {
 		int nCol = cur.getColumnCount();
 		String keys[] = cur.getColumnNames();
 		try {
-			for (int j=0; j<nCol; j++) {
-				switch(cur.getType(j)) {
+			for (int j = 0; j < nCol; j++) {
+				switch (cur.getType(j)) {
 					case Cursor.FIELD_TYPE_NULL:
 						json.put(keys[j], JSONObject.NULL);
-					break;
+						break;
 					case Cursor.FIELD_TYPE_INTEGER:
 						json.put(keys[j], cur.getLong(j));
-					break;
+						break;
 					case Cursor.FIELD_TYPE_FLOAT:
 						json.put(keys[j], cur.getFloat(j));
-					break;
+						break;
 					case Cursor.FIELD_TYPE_STRING:
 						json.put(keys[j], cur.getString(j));
-					break;
+						break;
 					case Cursor.FIELD_TYPE_BLOB:
 						json.put(keys[j], cur.getBlob(j));
-					break;
+						break;
 				}
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			return null;
 		}
 		return json;
 	}
 
 	private void onSMSArrive(JSONObject json) {
-		webView.loadUrl("javascript:try{cordova.fireDocumentEvent('onSMSArrive', {'data': "+json+"});}catch(e){console.log('exception firing onSMSArrive event from native');};");
+		webView.loadUrl("javascript:try{cordova.fireDocumentEvent('onSMSArrive', {'data': " + json
+				+ "});}catch(e){console.log('exception firing onSMSArrive event from native');};");
 	}
 
 	protected void createIncomingSMSReceiver() {
@@ -134,12 +134,15 @@ public class SMSReceive extends CordovaPlugin {
 			public void onReceive(Context context, Intent intent) {
 				if (intent.getAction().equals(SMS_RECEIVED_ACTION)) {
 					// Create SMS container
-					SmsMessage smsmsg = null;
+					String smsBody = "";
 					// Determine which API to use
 					if (Build.VERSION.SDK_INT >= 19) {
 						try {
 							SmsMessage[] sms = Telephony.Sms.Intents.getMessagesFromIntent(intent);
-							smsmsg = sms[0];
+							for (SmsMessage smsMessage : Telephony.Sms.Intents.getMessagesFromIntent(intent)) {
+								smsBody += smsMessage.getMessageBody();
+								smsmsg = smsMessage;
+							}
 						} catch (Exception e) {
 							Log.d(LOG_TAG, e.getMessage());
 						}
@@ -153,11 +156,11 @@ public class SMSReceive extends CordovaPlugin {
 						}
 					}
 					// Get SMS contents as JSON
-					if(smsmsg != null) {
-						JSONObject jsms = SMSReceive.this.getJsonFromSmsMessage(smsmsg);
+					if (smsmsg != null) {
+						JSONObject jsms = SMSReceive.this.getJsonFromSmsMessage(smsmsg,smsBody);
 						SMSReceive.this.onSMSArrive(jsms);
 						Log.d(LOG_TAG, jsms.toString());
-					}else{
+					} else {
 						Log.d(LOG_TAG, "smsmsg is null");
 					}
 				}
@@ -171,16 +174,15 @@ public class SMSReceive extends CordovaPlugin {
 		}
 	}
 
-	private JSONObject getJsonFromSmsMessage(SmsMessage sms) {
+	private JSONObject getJsonFromSmsMessage(SmsMessage sms, String smsBody) {
 		JSONObject json = new JSONObject();
 		try {
-			json.put( "address", sms.getOriginatingAddress() );
-			json.put( "body", sms.getMessageBody() ); // May need sms.getMessageBody.toString()
-			json.put( "date_sent", sms.getTimestampMillis() );
-			json.put( "date", System.currentTimeMillis() );
-			json.put( "service_center", sms.getServiceCenterAddress());
-		}
-		catch (Exception e) {
+			json.put("address", sms.getOriginatingAddress());
+			json.put("body", smsBody); // May need sms.getMessageBody.toString()
+			json.put("date_sent", sms.getTimestampMillis());
+			json.put("date", System.currentTimeMillis());
+			json.put("service_center", sms.getServiceCenterAddress());
+		} catch (Exception e) {
 			Log.d(LOG_TAG, e.getMessage());
 		}
 		return json;
@@ -191,11 +193,12 @@ public class SMSReceive extends CordovaPlugin {
 	 */
 	private boolean hasPermission() {
 
-		if(Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
 			return true;
 		}
 
-		if (cordova.getActivity().checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_DENIED) {
+		if (cordova.getActivity()
+				.checkSelfPermission(Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_DENIED) {
 			return false;
 		}
 
@@ -204,8 +207,9 @@ public class SMSReceive extends CordovaPlugin {
 	}
 
 	/**
-	 * We override this so that we can access the permissions variable, which no longer exists in
-	 * the parent class, since we can't initialize it reliably in the constructor!
+	 * We override this so that we can access the permissions variable, which no
+	 * longer exists in the parent class, since we can't initialize it reliably in
+	 * the constructor!
 	 *
 	 * @param requestCode The code to get request action
 	 */
@@ -214,15 +218,16 @@ public class SMSReceive extends CordovaPlugin {
 		cordova.requestPermission(this, requestCode, Manifest.permission.RECEIVE_SMS);
 
 	}
-	
+
 	/**
 	 * processes the result of permission request
 	 *
-	 * @param requestCode The code to get request action
-	 * @param permissions The collection of permissions
+	 * @param requestCode  The code to get request action
+	 * @param permissions  The collection of permissions
 	 * @param grantResults The result of grant
 	 */
-	public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+	public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults)
+			throws JSONException {
 		PluginResult result;
 		for (int r : grantResults) {
 			if (r == PackageManager.PERMISSION_DENIED) {
@@ -232,10 +237,10 @@ public class SMSReceive extends CordovaPlugin {
 				return;
 			}
 		}
-		switch(requestCode) {
+		switch (requestCode) {
 			case START_WATCH_REQ_CODE:
 				this.startWatch(this.callbackContext);
-			break;
+				break;
 		}
 	}
 
